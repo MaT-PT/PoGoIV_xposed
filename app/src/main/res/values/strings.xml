@@ -13,6 +13,10 @@
     <string name="show_pokestop_spin_results_title">Show Pokéstop spin results</string>
     <string name="show_startup_notification_summary">Notification shown after login that contains the list of Pokémon with the most candies in your inventory (useful to plan for mass-evolving)</string>
     <string name="show_startup_notification_title">Show base Pokémon number and candy notification</string>
+    <string name="enable_remote_server_summary">Send inventory-related data to a server in the form of JSON strings</string>
+    <string name="enable_remote_server_title">Send data to remote server</string>
+    <string name="remote_server_address_summary">URL prefix where JSON data will be sent</string>
+    <string name="remote_server_address_title">Remote server address</string>
     <string name="move_unset">move unset</string>
     <string name="cp">CP</string>
 

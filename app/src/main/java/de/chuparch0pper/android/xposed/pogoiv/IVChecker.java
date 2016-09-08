@@ -16,9 +16,15 @@ import com.github.aeonlucid.pogoprotos.networking.Requests;
 import com.github.aeonlucid.pogoprotos.networking.Responses;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.MessageOrBuilder;
+import com.google.protobuf.util.JsonFormat;
 
+import java.io.BufferedWriter;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
 import java.lang.reflect.Field;
 import java.net.HttpURLConnection;
+import java.net.URL;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -29,11 +35,14 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 
 import de.robv.android.xposed.IXposedHookLoadPackage;
 import de.robv.android.xposed.IXposedHookZygoteInit;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XSharedPreferences;
+import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.callbacks.XC_LoadPackage;
 
 import static de.robv.android.xposed.XposedHelpers.findAndHookMethod;
@@ -134,6 +143,66 @@ class EggHatchRewards {
     }
 }
 
+class PostMessageJson {
+    private String urlPrefix;
+
+    // SingleThreadExecutor guarantees sequential execution, which we want to ensure messages are sent in order
+    private static Executor executor = Executors.newSingleThreadExecutor();
+
+    private static class PostMessageRunnable implements Runnable {
+        MessageOrBuilder message;
+        String destination;
+
+        private static JsonFormat.Printer jsonPrinter = JsonFormat.printer().preservingProtoFieldNames().omittingInsignificantWhitespace();
+
+        public PostMessageRunnable(MessageOrBuilder message, String destination) {
+            this.message = message;
+            this.destination = destination;
+        }
+
+        @Override
+        public void run() {
+            try {
+                String jsonStr = jsonPrinter.print(message);
+                Helper.Log("* HTTP REQUEST: " + destination + " \n" + jsonStr);
+                URL url = new URL(destination);
+                HttpURLConnection httpURLConnection = (HttpURLConnection) url.openConnection();
+                httpURLConnection.setDoOutput(true);
+                httpURLConnection.setRequestMethod("POST");
+                httpURLConnection.setRequestProperty("Content-Type", "application/json");
+                httpURLConnection.setRequestProperty("Accept", "application/json");
+                Writer writer = new BufferedWriter(new OutputStreamWriter(httpURLConnection.getOutputStream(), "UTF-8"));
+                writer.write(jsonStr);
+                writer.close();
+                Helper.Log("* HTTP RESPONSE CODE: " + httpURLConnection.getResponseCode() + " " + httpURLConnection.getResponseMessage());
+            }
+            catch (Exception ex) {
+                Helper.Log("! HTTP REQUEST ERROR: " + ex.getMessage());
+                if (BuildConfig.DEBUG)
+                    XposedBridge.log(ex);
+            }
+        }
+    }
+
+    public PostMessageJson(String urlPrefix) {
+        this.urlPrefix = urlPrefix;
+    }
+
+    public String getUrlPrefix() {
+        return urlPrefix;
+    }
+
+    public void setUrlPrefix(String urlPrefix) {
+        this.urlPrefix = urlPrefix;
+    }
+
+    protected void send(MessageOrBuilder message) {
+        String destination = urlPrefix + message.getDescriptorForType().getName();
+        Runnable runnable = new PostMessageRunnable(message, destination);
+        executor.execute(runnable);
+    }
+}
+
 /**
  * entry point for XposedBridge
  * <p/>
@@ -149,10 +218,12 @@ public class IVChecker implements IXposedHookLoadPackage, IXposedHookZygoteInit 
     private boolean showGymDetails;
     private boolean showPokestopSpinResults;
     private boolean showStartupNotification;
+    private boolean enableRemoteServer;
 
     private static final Map<Long, List<Requests.RequestType>> requestMap = new HashMap<>();
     private final Map<Long, EggHatchRewards> hatchedEggs = new HashMap<>();
     private final Map<Item.ItemId, Integer> inventoryItems = new EnumMap<>(Item.ItemId.class);
+    private final PostMessageJson postMessageJson = new PostMessageJson("http://localhost:8088/");
     private int maxItemStorage = 0;
 
     @Override
@@ -322,6 +393,7 @@ public class IVChecker implements IXposedHookLoadPackage, IXposedHookZygoteInit 
         showGymDetails = preferences.getBoolean("show_gym_details", true);
         showPokestopSpinResults = preferences.getBoolean("show_pokestop_spin_results", true);
         showStartupNotification = preferences.getBoolean("show_startup_notification", false);
+        enableRemoteServer = preferences.getBoolean("enable_remote_server", false);
 
         Helper.Log("preferences - enableModule = " + enableModule);
         Helper.Log("preferences - showIvNotification = " + showIvNotification);
@@ -329,6 +401,12 @@ public class IVChecker implements IXposedHookLoadPackage, IXposedHookZygoteInit 
         Helper.Log("preferences - showGymDetails = " + showGymDetails);
         Helper.Log("preferences - showPokestopSpinResults = " + showPokestopSpinResults);
         Helper.Log("preferences - showStartupNotification = " + showStartupNotification);
+        Helper.Log("preferences - enableRemoteServer = " + enableRemoteServer);
+
+        if (enableRemoteServer) {
+            postMessageJson.setUrlPrefix(preferences.getString("remote_server_address", "http://localhost:8088/"));
+            Helper.Log("preferences - remoteServerAddress = " + postMessageJson.getUrlPrefix());
+        }
     }
 
     private void Encounter(ByteString payload) {
@@ -604,6 +682,9 @@ public class IVChecker implements IXposedHookLoadPackage, IXposedHookZygoteInit 
 
         Helper.Log("getPlayerResponse = ", getPlayerResponse.getAllFields().entrySet());
 
+        if (enableRemoteServer)
+            postMessageJson.send(getPlayerResponse);
+
         if (!getPlayerResponse.getSuccess() || !getPlayerResponse.hasPlayerData())
             return;
 
@@ -622,6 +703,9 @@ public class IVChecker implements IXposedHookLoadPackage, IXposedHookZygoteInit 
         }
 
         Helper.Log("getInventoryResponse = ", getInventoryResponse.getAllFields().entrySet());
+
+        if (enableRemoteServer)
+            postMessageJson.send(getInventoryResponse);
 
         if (!getInventoryResponse.getSuccess() || !getInventoryResponse.hasInventoryDelta())
             return;

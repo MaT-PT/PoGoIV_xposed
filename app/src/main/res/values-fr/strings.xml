@@ -14,6 +14,10 @@
     <string name="show_pokestop_spin_results_summary">Notification montrant les données cachés après avoir trourné les Pokéstops</string>
     <string name="show_startup_notification_summary">Notification affichée après la connexion qui contient la liste des Pokémon avec le plus de bonbons dans votre inventaire (utile pour planifier des évolutions en masse)</string>
     <string name="show_startup_notification_title">Afficher la notification pour le nombre de Pokémon de base et leurs bonbons</string>
+    <string name="enable_remote_server_summary">Envoyer les données concernant l\'inventaire à un serveur sous la forme de chaînes JSON</string>
+    <string name="enable_remote_server_title">Envoyer des données à un serveur distant</string>
+    <string name="remote_server_address_title">Adresse du serveur distant</string>
+    <string name="remote_server_address_summary">Préfixe d\'URL où les données JSON seront envoyées</string>
     <string name="move_unset">attaque non définie</string>
     <string name="cp">PC</string>
 

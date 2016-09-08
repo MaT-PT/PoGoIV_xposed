@@ -36,4 +36,17 @@
         android:summary="@string/show_startup_notification_summary"
         android:title="@string/show_startup_notification_title" />
 
+    <SwitchPreference
+        android:defaultValue="false"
+        android:key="enable_remote_server"
+        android:summary="@string/enable_remote_server_summary"
+        android:title="@string/enable_remote_server_title" />
+
+    <EditTextPreference
+        android:defaultValue="http://localhost:8088/"
+        android:key="remote_server_address"
+        android:summary="@string/remote_server_address_summary"
+        android:title="@string/remote_server_address_title"
+        android:dependency="enable_remote_server" />
+
 </PreferenceScreen>
