@@ -1,5 +1,17 @@
 apply plugin: 'com.android.application'
 
+String gitBranch() {
+    String branch = null
+    try {
+        Process proc = "git rev-parse --abbrev-ref HEAD".execute()
+        proc.in.eachLine { line -> branch = line }
+        proc.err.eachLine { line -> println line }
+        proc.waitFor()
+    }
+    catch (ex) {}
+    return branch
+}
+
 android {
     compileSdkVersion 24
     buildToolsVersion "24.0.2"
@@ -10,6 +22,8 @@ android {
         targetSdkVersion 24
         versionCode 9
         versionName "1.5"
+        String branch = gitBranch()
+        project.ext.set("archivesBaseName", applicationId + "_" + versionName + (branch ? "-" + branch : ""));
 
     }
     buildTypes {
