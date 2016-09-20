@@ -3,7 +3,9 @@ package de.chuparch0pper.android.xposed.pogoiv;
 import android.app.AndroidAppHelper;
 import android.app.Notification;
 import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Handler;
 import android.os.Looper;
@@ -16,10 +18,38 @@ import com.github.aeonlucid.pogoprotos.networking.Responses;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.ProtocolMessageEnum;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.Map;
 import java.util.Set;
 
 import de.robv.android.xposed.XposedBridge;
+
+class BubblestratPokemon {
+    private int pokeNr;
+    private double maxLevel;
+    private int moveNr;
+
+    public BubblestratPokemon(int pokeNr, double maxLevel, int moveNr) {
+        this.pokeNr = pokeNr;
+        this.maxLevel = maxLevel;
+        this.moveNr = moveNr;
+    }
+
+    public int getPokeNr() {
+        return pokeNr;
+    }
+
+    public double getMaxLevel() {
+        return maxLevel;
+    }
+
+    public int getMoveNr() { return  moveNr; }
+}
 
 public class Helper {
     public static final String PACKAGE_NAME = IVChecker.class.getPackage().getName();
@@ -28,6 +58,7 @@ public class Helper {
     private static Context pokeContext = null;
 
     private static String[] pokemonNames = null;
+    private static BubblestratPokemon[] bubblestratPokemons = null;
 
     public static void Log(String message) {
         if (BuildConfig.DEBUG) {
@@ -55,6 +86,7 @@ public class Helper {
         new Handler(Looper.getMainLooper()).post(new Runnable() {
             @Override
             public void run() {
+                /*
                 NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(getPokeContext());
                 mBuilder.setSmallIcon(android.R.drawable.ic_dialog_info);
                 mBuilder.setContentTitle(title);
@@ -63,8 +95,23 @@ public class Helper {
                 mBuilder.setVibrate(new long[]{1000});
                 mBuilder.setPriority(Notification.PRIORITY_MAX);
 
+                Intent showToastIntent = new Intent();
+                showToastIntent.putExtra("longText", longText);
+                showToastIntent.setAction(NotificationReceiver.TOAST);
+                PendingIntent pendingIntent = PendingIntent.getBroadcast(getPokeContext(), 0, showToastIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+                mBuilder.setContentIntent(pendingIntent);
+
                 NotificationManager mNotificationManager = (NotificationManager) getPokeContext().getSystemService(Context.NOTIFICATION_SERVICE);
                 mNotificationManager.notify(699511, mBuilder.build());
+                 */
+
+                Intent intent = new Intent();
+                intent.setAction(NotificationReceiver.SHOW_NOTIFICATION);
+                intent.putExtra("title", title);
+                intent.putExtra("text", text);
+                intent.putExtra("longText", longText);
+                getPokeContext().sendBroadcast(intent);
+
             }
         });
     }
@@ -158,4 +205,85 @@ public class Helper {
     public static String getCpName() {
         return getContext().getResources().getString(R.string.cp);
     }
+
+
+    private static String loadJSONFromAssetBS() {
+        try {
+            InputStream inputStream = getContext().getAssets().open("bubblestrat.json");
+            byte[] buffer = new byte[inputStream.available()];
+            inputStream.read(buffer);
+            inputStream.close();
+            return new String(buffer, "UTF-8");
+        } catch (IOException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+//    private static String loadJSONFromAssetML() {
+//        try {
+//            InputStream inputStream = getContext().getAssets().open("movelist.json");
+//            byte[] buffer = new byte[inputStream.available()];
+//            inputStream.read(buffer);
+//            inputStream.close();
+//            return new String(buffer, "UTF-8");
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//            return null;
+//        }
+//    }
+//
+//    private static void loadPokemonMoves() {
+//        try {
+//            JSONObject jsonObject = new JSONObject(loadJSONFromAssetBS());
+//            JSONArray jsonArray = jsonObject.getJSONArray("defenders");
+//
+//            bubblestratPokemons = new BubblestratPokemon[jsonArray.length()];
+//            for (int i = 0; i < jsonArray.length(); i++) {
+//                JSONObject jsonObjectInArray = jsonArray.getJSONObject(i);
+//                bubblestratPokemons[i] = new BubblestratPokemon(jsonObjectInArray.getInt("id"), jsonObjectInArray.getDouble("max_level"), jsonObjectInArray.getInt("move"));
+//            }
+//
+//        } catch (JSONException e) {
+//            e.printStackTrace();
+//        }
+//
+//    }
+
+    private static void loadBubblestratPokemon() {
+        try {
+            JSONObject jsonObject = new JSONObject(loadJSONFromAssetBS());
+            JSONArray jsonArray = jsonObject.getJSONArray("defenders");
+
+            bubblestratPokemons = new BubblestratPokemon[jsonArray.length()];
+            for (int i = 0; i < jsonArray.length(); i++) {
+                JSONObject jsonObjectInArray = jsonArray.getJSONObject(i);
+                bubblestratPokemons[i] = new BubblestratPokemon(jsonObjectInArray.getInt("id"), jsonObjectInArray.getDouble("max_level"), jsonObjectInArray.getInt("move"));
+            }
+
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+
+    }
+
+    public static boolean isBubblestratPokemon(int pokemonId, double level, int moveID) {
+        double epsilon = 0.0001;
+
+        if (bubblestratPokemons == null) {
+            loadBubblestratPokemon();
+        }
+
+        if (Math.abs(level - 2) < epsilon) { // all bubblestrat compatible Pokémon are level 2 or lower
+            return false;
+        }
+
+        for (BubblestratPokemon bubblestratPokemon : bubblestratPokemons) {
+            if (bubblestratPokemon.getPokeNr() == pokemonId && Math.abs(bubblestratPokemon.getMaxLevel() - level) < epsilon  && (bubblestratPokemon.getMoveNr() == moveID)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
 }
