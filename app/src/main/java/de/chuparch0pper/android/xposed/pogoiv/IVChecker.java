@@ -19,10 +19,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.lang.reflect.Field;
-import java.net.HttpURLConnection;
 import java.net.URLConnection;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;

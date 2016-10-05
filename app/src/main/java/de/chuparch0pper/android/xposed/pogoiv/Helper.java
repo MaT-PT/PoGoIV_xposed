@@ -1,16 +1,12 @@
 package de.chuparch0pper.android.xposed.pogoiv;
 
 import android.app.AndroidAppHelper;
-import android.app.Notification;
-import android.app.NotificationManager;
-import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
-import android.support.v7.app.NotificationCompat;
 import android.widget.Toast;
 
 import com.github.aeonlucid.pogoprotos.Enums;
