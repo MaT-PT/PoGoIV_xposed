@@ -1,15 +1,12 @@
 package de.chuparch0pper.android.xposed.pogoiv;
 
 import android.app.AndroidAppHelper;
-import android.app.Notification;
-import android.app.NotificationManager;
-import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
-import android.support.v7.app.NotificationCompat;
 import android.widget.Toast;
 
 import com.github.aeonlucid.pogoprotos.Enums;
@@ -24,6 +21,7 @@ import org.json.JSONObject;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URLConnection;
 import java.util.Map;
 import java.util.Set;
 
@@ -52,6 +50,8 @@ class BubblestratPokemon {
 }
 
 public class Helper {
+    private static final String API_PREFIX = "https://pgorelease.nianticlabs.com/plfe";
+    private static final String API_SUFFIX = "/rpc";
     public static final String PACKAGE_NAME = IVChecker.class.getPackage().getName();
 
     private static Context context = null;
@@ -190,6 +190,29 @@ public class Helper {
 
     public static String getGenericEnumName(ProtocolMessageEnum enumEntry) {
         return prettyPrintEnum(enumEntry.toString());
+    }
+
+    public static String getHttpURLConnectionImplName() {
+        int apiLevel = Build.VERSION.SDK_INT;
+        // real http class names are from
+        // https://goshin.github.io/2016/07/14/Black-box-test-using-Xposed/
+        String httpURLConnectionImplName;
+
+        if (apiLevel >= 23) {
+            httpURLConnectionImplName = "com.android.okhttp.internal.huc.HttpURLConnectionImpl";
+        } else if (apiLevel >= 19) {
+            httpURLConnectionImplName = "com.android.okhttp.internal.http.HttpURLConnectionImpl";
+        } else {
+            httpURLConnectionImplName = "libcore.net.http.HttpURLConnectionImpl";
+        }
+
+        return httpURLConnectionImplName;
+    }
+
+    public static boolean isNiaNetConnection(URLConnection urlConnection) {
+        String url = urlConnection.getURL().toExternalForm();
+
+        return url != null && url.startsWith(API_PREFIX) && url.endsWith(API_SUFFIX);
     }
 
     private static String prettyPrintEnum(String enums) {
